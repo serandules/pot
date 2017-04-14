@@ -1,0 +1,21 @@
+{
+  "name": "pot",
+  "description": "pot",
+  "version": "0.0.0",
+  "author": {
+    "name": "serandives",
+    "email": "serandives@gmail.com"
+  },
+  "dependencies": {
+    "nconf": "^0.8.4",
+    "async": "^2.3.0",
+    "mongoose": "4.9.3",
+    "logger": "serandules/logger#master",
+    "initializers": "serandules/initializers#master",
+    "server": "serandules/server#master"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/serandules/pot.git"
+  }
+}
