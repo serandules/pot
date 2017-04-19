@@ -5,13 +5,15 @@ var mongoose = require('mongoose');
 var initializers = require('initializers');
 var server = require('server');
 
+var initialized = false;
+
 mongoose.Promise = global.Promise;
 
 var env = nconf.get('env');
 
 nconf.defaults(require('./env/' + env + '.json'));
 
-exports.start = function (done) {
+var start = function (done) {
     var mongodbUri = nconf.get('mongodbUri');
     mongoose.connect(mongodbUri);
     var db = mongoose.connection;
@@ -31,6 +33,19 @@ exports.start = function (done) {
                 server.start(done);
             });
         });
+    });
+};
+
+exports.start = function (done) {
+    if (initialized) {
+        return start(done);
+    }
+    server.init(function (err) {
+        if (err) {
+            return done(err);
+        }
+        initialized = true;
+        start(done);
     });
 };
 
