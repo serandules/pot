@@ -55,6 +55,7 @@ exports.stop = function (done) {
     });
 };
 
-exports.resolve = function (path) {
-    return 'http://test.serandives.com:4000' + path;
+exports.resolve = function (domain, path) {
+    var prefix = env === 'test' ? env : env + '.' + domain;
+    return 'http://' + prefix + '.serandives.com:4000' + path;
 };
