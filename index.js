@@ -37,7 +37,13 @@ var start = function (done) {
     });
 };
 
-exports.start = function (done) {
+exports.start = function (don) {
+    var done = function (err) {
+        if (err) {
+            log.error(err);
+        }
+        don(err);
+    };
     if (initialized) {
         return start(done);
     }
