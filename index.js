@@ -68,7 +68,8 @@ exports.resolve = function (domain, path) {
 };
 
 exports.client = function (done) {
-    var o = {};
+    var o = {users: []};
+    var numUsers = 2;
     request({
         uri: exports.resolve('accounts', '/apis/v/configs/boot'),
         method: 'GET',
@@ -81,40 +82,50 @@ exports.client = function (done) {
             return done(new Error(r.statusCode))
         }
         o.serandivesId = b.value.clients.serandives;
-        request({
-            uri: exports.resolve('accounts', '/apis/v/users'),
-            method: 'POST',
-            json: {
-                email: 'user@serandives.com',
-                password: '1@2.Com'
-            }
-        }, function (e, r, b) {
-            if (e) {
-                return done(e);
-            }
-            if (r.statusCode !== 201) {
-                return done(new Error(r.statusCode))
-            }
-            o.user = b;
+        async.whilst(function () {
+            return numUsers-- > 0;
+        }, function (iterated) {
+            var email = 'user' + numUsers + '@serandives.com';
+            var password = '1@2.Com';
+            var user = {};
             request({
-                uri: exports.resolve('accounts', '/apis/v/tokens'),
+                uri: exports.resolve('accounts', '/apis/v/users'),
                 method: 'POST',
                 json: {
-                    client_id: o.serandivesId,
-                    grant_type: 'password',
-                    username: 'user@serandives.com',
-                    password: '1@2.Com'
+                    email: email,
+                    password: password
                 }
             }, function (e, r, b) {
                 if (e) {
-                    return done(e);
+                    return iterated(e);
                 }
-                if (r.statusCode !== 200) {
-                    return done(new Error(r.statusCode))
+                if (r.statusCode !== 201) {
+                    return iterated(new Error(r.statusCode))
                 }
-                o.token = b.access_token;
-                done(null, o);
-            })
-        })
+                user.profile = b;
+                request({
+                    uri: exports.resolve('accounts', '/apis/v/tokens'),
+                    method: 'POST',
+                    json: {
+                        client_id: o.serandivesId,
+                        grant_type: 'password',
+                        username: email,
+                        password: password
+                    }
+                }, function (e, r, b) {
+                    if (e) {
+                        return iterated(e);
+                    }
+                    if (r.statusCode !== 200) {
+                        return iterated(new Error(r.statusCode))
+                    }
+                    user.token = b.access_token;
+                    o.users.push(user);
+                    iterated();
+                });
+            });
+        }, function (err) {
+            done(err, o);
+        });
     })
 }
