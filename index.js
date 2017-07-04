@@ -23,10 +23,13 @@ var start = function (done) {
     });
     db.once('open', function () {
         log.info('connected to mongodb : ' + mongodbUri);
-        mongoose.connection.db.dropDatabase(function (err) {
+        mongoose.connection.db.collections(function (err, collections) {
             if (err) {
                 return done(err);
             }
+            collections.forEach(function (collection) {
+                collection.removeMany();
+            });
             initializers.init(function (err) {
                 if (err) {
                     return done(err);
