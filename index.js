@@ -16,7 +16,7 @@ nconf.defaults(require('./env/' + env + '.json'));
 
 var start = function (done) {
     var mongodbUri = nconf.get('mongodbUri');
-    mongoose.connect(mongodbUri);
+    mongoose.connect(mongodbUri, {useMongoClient: true});
     var db = mongoose.connection;
     db.on('error', function (err) {
         log.error('mongodb connection error: %e', err);
@@ -27,14 +27,18 @@ var start = function (done) {
             if (err) {
                 return done(err);
             }
-            collections.forEach(function (collection) {
-                collection.removeMany();
-            });
-            initializers.init(function (err) {
+            async.eachLimit(collections, 1, function (collection, removed) {
+                collection.remove(removed);
+            }, function (err) {
                 if (err) {
                     return done(err);
                 }
-                server.start(done);
+                initializers.init(function (err) {
+                    if (err) {
+                        return done(err);
+                    }
+                    server.start(done);
+                });
             });
         });
     });
@@ -131,4 +135,4 @@ exports.client = function (done) {
             done(err, o);
         });
     })
-}
+};
