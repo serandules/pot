@@ -76,7 +76,7 @@ exports.resolve = function (domain, path) {
 
 exports.client = function (done) {
     var o = {users: []};
-    var numUsers = 2;
+    var numUsers = 3;
     request({
         uri: exports.resolve('accounts', '/apis/v/configs/boot'),
         method: 'GET',
