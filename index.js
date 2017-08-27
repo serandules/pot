@@ -86,7 +86,7 @@ exports.client = function (done) {
             return done(e);
         }
         if (r.statusCode !== 200) {
-            return done(new Error(r.statusCode))
+            return done(new Error(r.statusCode));
         }
         o.serandivesId = b.value.clients.serandives;
         async.whilst(function () {
@@ -107,7 +107,7 @@ exports.client = function (done) {
                     return iterated(e);
                 }
                 if (r.statusCode !== 201) {
-                    return iterated(new Error(r.statusCode))
+                    return iterated(new Error(r.statusCode));
                 }
                 user.profile = b;
                 request({
@@ -124,7 +124,7 @@ exports.client = function (done) {
                         return iterated(e);
                     }
                     if (r.statusCode !== 200) {
-                        return iterated(new Error(r.statusCode))
+                        return iterated(new Error(r.statusCode));
                     }
                     user.token = b.access_token;
                     o.users.push(user);
@@ -134,5 +134,25 @@ exports.client = function (done) {
         }, function (err) {
             done(err, o);
         });
+    })
+};
+
+exports.groups = function (done) {
+    request({
+        uri: exports.resolve('accounts', '/apis/v/configs/groups'),
+        method: 'GET',
+        json: true
+    }, function (e, r, b) {
+        if (e) {
+            return done(e);
+        }
+        if (r.statusCode !== 200) {
+            return done(new Error(r.statusCode));
+        }
+        var groups = {};
+        b.value.forEach(function (group) {
+            groups[group.name] = group;
+        });
+        done(null, groups);
     })
 };
