@@ -8,6 +8,8 @@ var server = require('server');
 
 var initialized = false;
 
+var clean = ['vehicles'];
+
 mongoose.Promise = global.Promise;
 
 var env = nconf.get('env');
@@ -28,19 +30,137 @@ var start = function (done) {
                 return done(err);
             }
             async.eachLimit(collections, 1, function (collection, removed) {
+                if (clean.indexOf(collection.collectionName) === -1) {
+                    return removed();
+                }
                 collection.remove(removed);
             }, function (err) {
                 if (err) {
                     return done(err);
                 }
+                if (initialized) {
+                    return server.start(done);
+                }
                 initializers.init(function (err) {
                     if (err) {
                         return done(err);
                     }
+                    initialized = true;
                     server.start(done);
                 });
             });
         });
+    });
+};
+
+var createUsers = function (o, numUsers, done) {
+    async.whilst(function () {
+        return numUsers-- > 0;
+    }, function (iterated) {
+        var email = 'user' + numUsers + '@serandives.com';
+        var password = '1@2.Com';
+        var user = {};
+        request({
+            uri: exports.resolve('accounts', '/apis/v/users'),
+            method: 'POST',
+            json: {
+                email: email,
+                password: password
+            }
+        }, function (e, r, b) {
+            if (e) {
+                return iterated(e);
+            }
+            if (r.statusCode !== 201) {
+                return iterated(new Error(r.statusCode));
+            }
+            user.profile = b;
+            request({
+                uri: exports.resolve('accounts', '/apis/v/tokens'),
+                method: 'POST',
+                json: {
+                    client_id: o.serandivesId,
+                    grant_type: 'password',
+                    username: email,
+                    password: password
+                }
+            }, function (e, r, b) {
+                if (e) {
+                    return iterated(e);
+                }
+                if (r.statusCode !== 200) {
+                    return iterated(new Error(r.statusCode));
+                }
+                user.token = b.access_token;
+                o.users.push(user);
+                iterated();
+            });
+        });
+    }, function (err) {
+        done(err, o);
+    });
+};
+
+var findUsers = function (o, numUsers, done) {
+    async.whilst(function () {
+        return numUsers-- > 0;
+    }, function (iterated) {
+        var email = 'user' + numUsers + '@serandives.com';
+        var password = '1@2.Com';
+        var user = {};
+        request({
+            uri: exports.resolve('accounts', '/apis/v/tokens'),
+            method: 'POST',
+            json: {
+                client_id: o.serandivesId,
+                grant_type: 'password',
+                username: email,
+                password: password
+            }
+        }, function (e, r, b) {
+            if (e) {
+                return iterated(e);
+            }
+            if (r.statusCode !== 200) {
+                return iterated(new Error(r.statusCode));
+            }
+            user.token = b.access_token;
+            request({
+                uri: exports.resolve('accounts', '/apis/v/tokens/' + b.id),
+                method: 'GET',
+                auth: {
+                    bearer: user.token
+                },
+                json: true
+            }, function (e, r, b) {
+                if (e) {
+                    return iterated(e);
+                }
+                if (r.statusCode !== 200) {
+                    return iterated(new Error(r.statusCode));
+                }
+                request({
+                    uri: exports.resolve('accounts', '/apis/v/users/' + b.user),
+                    method: 'GET',
+                    auth: {
+                        bearer: user.token
+                    },
+                    json: true
+                }, function (e, r, b) {
+                    if (e) {
+                        return iterated(e);
+                    }
+                    if (r.statusCode !== 200) {
+                        return iterated(new Error(r.statusCode));
+                    }
+                    user.profile = b;
+                    o.users.push(user);
+                    iterated();
+                });
+            });
+        });
+    }, function (err) {
+        done(err, o);
     });
 };
 
@@ -58,7 +178,6 @@ exports.start = function (don) {
         if (err) {
             return done(err);
         }
-        initialized = true;
         start(done);
     });
 };
@@ -75,8 +194,8 @@ exports.resolve = function (domain, path) {
 };
 
 exports.client = function (done) {
-    var o = {users: []};
     var numUsers = 3;
+    var o = {users: []};
     request({
         uri: exports.resolve('accounts', '/apis/v/configs/boot'),
         method: 'GET',
@@ -89,51 +208,10 @@ exports.client = function (done) {
             return done(new Error(r.statusCode));
         }
         o.serandivesId = b.value.clients.serandives;
-        async.whilst(function () {
-            return numUsers-- > 0;
-        }, function (iterated) {
-            var email = 'user' + numUsers + '@serandives.com';
-            var password = '1@2.Com';
-            var user = {};
-            request({
-                uri: exports.resolve('accounts', '/apis/v/users'),
-                method: 'POST',
-                json: {
-                    email: email,
-                    password: password
-                }
-            }, function (e, r, b) {
-                if (e) {
-                    return iterated(e);
-                }
-                if (r.statusCode !== 201) {
-                    return iterated(new Error(r.statusCode));
-                }
-                user.profile = b;
-                request({
-                    uri: exports.resolve('accounts', '/apis/v/tokens'),
-                    method: 'POST',
-                    json: {
-                        client_id: o.serandivesId,
-                        grant_type: 'password',
-                        username: email,
-                        password: password
-                    }
-                }, function (e, r, b) {
-                    if (e) {
-                        return iterated(e);
-                    }
-                    if (r.statusCode !== 200) {
-                        return iterated(new Error(r.statusCode));
-                    }
-                    user.token = b.access_token;
-                    o.users.push(user);
-                    iterated();
-                });
-            });
-        }, function (err) {
-            done(err, o);
-        });
+        if (initialized) {
+            return findUsers(o, numUsers, done);
+        }
+        createUsers(o, numUsers, done)
     })
 };
 
