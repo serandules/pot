@@ -9,6 +9,7 @@
   "dependencies": {
     "nconf": "^0.8.4",
     "async": "^2.3.0",
+    "node-uuid": "1.*",
     "mongoose": "4.*",
     "logger": "serandules/logger#master",
     "initializers": "serandules/initializers#master",

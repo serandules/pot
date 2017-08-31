@@ -3,18 +3,17 @@ var nconf = require('nconf').argv().env();
 var async = require('async');
 var mongoose = require('mongoose');
 var request = require('request');
-var initializers = require('initializers');
-var server = require('server');
-
-var initialized = false;
-
-var clean = ['vehicles'];
-
-mongoose.Promise = global.Promise;
 
 var env = nconf.get('env');
 
 nconf.defaults(require('./env/' + env + '.json'));
+
+var initializers = require('initializers');
+var server = require('server');
+
+var client;
+
+mongoose.Promise = global.Promise;
 
 var start = function (done) {
     var mongodbUri = nconf.get('mongodbUri');
@@ -30,22 +29,15 @@ var start = function (done) {
                 return done(err);
             }
             async.eachLimit(collections, 1, function (collection, removed) {
-                if (clean.indexOf(collection.collectionName) === -1) {
-                    return removed();
-                }
                 collection.remove(removed);
             }, function (err) {
                 if (err) {
                     return done(err);
                 }
-                if (initialized) {
-                    return server.start(done);
-                }
                 initializers.init(function (err) {
                     if (err) {
                         return done(err);
                     }
-                    initialized = true;
                     server.start(done);
                 });
             });
@@ -164,16 +156,7 @@ var findUsers = function (o, numUsers, done) {
     });
 };
 
-exports.start = function (don) {
-    var done = function (err) {
-        if (err) {
-            log.error(err);
-        }
-        don(err);
-    };
-    if (initialized) {
-        return start(done);
-    }
+exports.start = function (done) {
     server.init(function (err) {
         if (err) {
             return done(err);
@@ -188,14 +171,33 @@ exports.stop = function (done) {
     });
 };
 
+exports.drop = function (drop, done) {
+    drop = Array.isArray(drop) ? drop : [drop];
+    mongoose.connection.db.collections(function (err, collections) {
+        if (err) {
+            return done(err);
+        }
+        async.eachLimit(collections, 1, function (collection, removed) {
+            if (drop.indexOf(collection.collectionName) === -1) {
+                return removed();
+            }
+
+            collection.remove(removed);
+        }, done);
+    });
+};
+
 exports.resolve = function (domain, path) {
     var prefix = env === 'test' ? env : env + '.' + domain;
     return 'http://' + prefix + '.serandives.com:4000' + path;
 };
 
 exports.client = function (done) {
+    if (client) {
+        return done(null, client);
+    }
     var numUsers = 3;
-    var o = {users: []};
+    client = {users: []};
     request({
         uri: exports.resolve('accounts', '/apis/v/configs/boot'),
         method: 'GET',
@@ -207,12 +209,9 @@ exports.client = function (done) {
         if (r.statusCode !== 200) {
             return done(new Error(r.statusCode));
         }
-        o.serandivesId = b.value.clients.serandives;
-        if (initialized) {
-            return findUsers(o, numUsers, done);
-        }
-        createUsers(o, numUsers, done)
-    })
+        client.serandivesId = b.value.clients.serandives;
+        createUsers(client, numUsers, done);
+    });
 };
 
 exports.groups = function (done) {
