@@ -13,6 +13,8 @@ var server = require('server');
 
 var client;
 
+var admin;
+
 mongoose.Promise = global.Promise;
 
 var start = function (done) {
@@ -211,6 +213,69 @@ exports.client = function (done) {
         }
         client.serandivesId = b.value.clients.serandives;
         createUsers(client, numUsers, done);
+    });
+};
+
+exports.admin = function (done) {
+    if (admin) {
+        return done(null, admin);
+    }
+    admin = {};
+    exports.client(function (err, client) {
+        if (err) {
+            return done(err);
+        }
+        request({
+            uri: exports.resolve('accounts', '/apis/v/tokens'),
+            method: 'POST',
+            json: {
+                client_id: client.serandivesId,
+                grant_type: 'password',
+                username: 'admin@serandives.com',
+                password: nconf.get('password')
+            }
+        }, function (e, r, token) {
+            if (e) {
+                return done(e);
+            }
+            if (r.statusCode !== 200) {
+                return done(new Error(r.statusCode));
+            }
+            admin.token = token;
+            var accessToken = token.access_token;
+            request({
+                uri: exports.resolve('accounts', '/apis/v/tokens/' + token.id),
+                method: 'GET',
+                auth: {
+                    bearer: accessToken
+                },
+                json: true
+            }, function (e, r, b) {
+                if (e) {
+                    return done(e);
+                }
+                if (r.statusCode !== 200) {
+                    return done(new Error(r.statusCode));
+                }
+                request({
+                    uri: exports.resolve('accounts', '/apis/v/users/' + b.user),
+                    method: 'GET',
+                    auth: {
+                        bearer: accessToken
+                    },
+                    json: true
+                }, function (e, r, user) {
+                    if (e) {
+                        return done(e);
+                    }
+                    if (r.statusCode !== 200) {
+                        return done(new Error(r.statusCode));
+                    }
+                    admin.profile = user;
+                    done(null, admin);
+                });
+            });
+        });
     });
 };
 
