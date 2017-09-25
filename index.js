@@ -72,12 +72,13 @@ var createUsers = function (o, numUsers, done) {
             request({
                 uri: exports.resolve('accounts', '/apis/v/tokens'),
                 method: 'POST',
-                json: {
+                form: {
                     client_id: o.serandivesId,
                     grant_type: 'password',
                     username: email,
                     password: password
-                }
+                },
+                json: true
             }, function (e, r, b) {
                 if (e) {
                     return iterated(e);
@@ -191,7 +192,7 @@ exports.drop = function (drop, done) {
 
 exports.resolve = function (domain, path) {
     var prefix = env === 'test' ? env : env + '.' + domain;
-    return 'http://' + prefix + '.serandives.com:4000' + path;
+    return 'http://' + prefix + '.serandives.com:' + nconf.get('port') + path;
 };
 
 exports.client = function (done) {

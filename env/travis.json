@@ -1,10 +1,10 @@
 {
-  "port": "6000",
+  "port": "4000",
   "mongodbUri": "mongodb://127.0.0.1:27017/serandives-test",
-  "server": "http://development.{sub}.serandives.com:6000",
+  "server": "http://test.{sub}.serandives.com:4000",
   "password": "ruchira",
   "cdn": "http://localhost:4040",
-  "facebookId": "123456",
+  "facebookId": "",
   "awsKey": "",
   "awsSecret": ""
 }
