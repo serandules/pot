@@ -1,10 +1,11 @@
 {
-  "port": "4000",
-  "mongodbUri": "mongodb://127.0.0.1:27017/serandives-test",
-  "server": "http://test.{sub}.serandives.com:4000",
-  "password": "ruchira",
-  "cdn": "http://localhost:4040",
-  "facebookId": "",
-  "awsKey": "",
-  "awsSecret": ""
+  "PORT": "4000",
+  "MONGODB_URI": "mongodb://127.0.0.1:27017/serandives-travis",
+  "SERVER": "http://development.{sub}.serandives.com:4000",
+  "CDN": "http://localhost:4040",
+  "PASSWORD": "ruchira",
+  "FACEBOOK_ID": "",
+  "FACEBOOK_SECRET": "",
+  "AWS_KEY": "",
+  "AWS_SECRET": ""
 }

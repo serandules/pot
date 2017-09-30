@@ -4,7 +4,7 @@ var async = require('async');
 var mongoose = require('mongoose');
 var request = require('request');
 
-var env = nconf.get('env');
+var env = nconf.get('ENV');
 
 nconf.defaults(require('./env/' + env + '.json'));
 
@@ -18,7 +18,7 @@ var admin;
 mongoose.Promise = global.Promise;
 
 var start = function (done) {
-    var mongodbUri = nconf.get('mongodbUri');
+    var mongodbUri = nconf.get('MONGODB_URI');
     mongoose.connect(mongodbUri, {useMongoClient: true});
     var db = mongoose.connection;
     db.on('error', function (err) {
@@ -192,7 +192,7 @@ exports.drop = function (drop, done) {
 
 exports.resolve = function (domain, path) {
     var prefix = env === 'test' ? env : env + '.' + domain;
-    return 'http://' + prefix + '.serandives.com:' + nconf.get('port') + path;
+    return 'http://' + prefix + '.serandives.com:' + nconf.get('PORT') + path;
 };
 
 exports.client = function (done) {
