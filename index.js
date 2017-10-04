@@ -17,36 +17,6 @@ var admin;
 
 mongoose.Promise = global.Promise;
 
-var start = function (done) {
-    var mongodbUri = nconf.get('MONGODB_URI');
-    mongoose.connect(mongodbUri, {useMongoClient: true});
-    var db = mongoose.connection;
-    db.on('error', function (err) {
-        log.error('mongodb connection error: %e', err);
-    });
-    db.once('open', function () {
-        log.info('connected to mongodb : ' + mongodbUri);
-        mongoose.connection.db.collections(function (err, collections) {
-            if (err) {
-                return done(err);
-            }
-            async.eachLimit(collections, 1, function (collection, removed) {
-                collection.remove(removed);
-            }, function (err) {
-                if (err) {
-                    return done(err);
-                }
-                initializers.init(function (err) {
-                    if (err) {
-                        return done(err);
-                    }
-                    server.start(done);
-                });
-            });
-        });
-    });
-};
-
 var createUsers = function (o, numUsers, done) {
     async.whilst(function () {
         return numUsers-- > 0;
@@ -160,11 +130,32 @@ var findUsers = function (o, numUsers, done) {
 };
 
 exports.start = function (done) {
-    server.init(function (err) {
-        if (err) {
-            return done(err);
-        }
-        start(done);
+    var mongodbUri = nconf.get('MONGODB_URI');
+    mongoose.connect(mongodbUri, {useMongoClient: true});
+    var db = mongoose.connection;
+    db.on('error', function (err) {
+        log.error('mongodb connection error: %e', err);
+    });
+    db.once('open', function () {
+        log.info('connected to mongodb : ' + mongodbUri);
+        mongoose.connection.db.collections(function (err, collections) {
+            if (err) {
+                return done(err);
+            }
+            async.eachLimit(collections, 1, function (collection, removed) {
+                collection.remove(removed);
+            }, function (err) {
+                if (err) {
+                    return done(err);
+                }
+                initializers.init(function (err) {
+                    if (err) {
+                        return done(err);
+                    }
+                    server.start(done);
+                });
+            });
+        });
     });
 };
 
