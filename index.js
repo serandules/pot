@@ -187,7 +187,7 @@ exports.drop = function (drop, done) {
 };
 
 exports.resolve = function (domain, path) {
-    var prefix = env === 'test' ? env : env + '.' + domain;
+    var prefix = (env === 'test' || env === 'travis') ? env : env + '.' + domain;
     return 'http://' + prefix + '.serandives.com:' + nconf.get('PORT') + path;
 };
 

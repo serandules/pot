@@ -1,7 +1,7 @@
 {
-  "PORT": "4000",
+  "PORT": "6000",
   "MONGODB_URI": "mongodb://127.0.0.1:27017/serandives-travis",
-  "SERVER": "http://development.{sub}.serandives.com:4000",
+  "SERVER": "http://development.{sub}.serandives.com:6000",
   "CDN": "http://localhost:4040",
   "PASSWORD": "ruchira",
   "FACEBOOK_ID": "",
