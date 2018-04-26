@@ -10,7 +10,7 @@
     "nconf": "0.8.4",
     "async": "^2.3.0",
     "node-uuid": "1.*",
-    "mongoose": "4.*",
+    "mongoose": "5.*",
     "logger": "serandules/logger#master",
     "initializers": "serandules/initializers#master",
     "server": "serandules/server#master"
