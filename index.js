@@ -4,7 +4,9 @@ var async = require('async');
 var mongoose = require('mongoose');
 var request = require('request');
 
-var env = nconf.get('ENV');
+var utils = require('utils');
+
+var env = utils.env();
 
 nconf.defaults(require('./env/' + env + '.json'));
 

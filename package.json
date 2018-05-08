@@ -13,6 +13,7 @@
     "mongoose": "5.*",
     "logger": "serandules/logger#master",
     "initializers": "serandules/initializers#master",
+    "utils": "serandules/utils#master",
     "server": "serandules/server#master"
   },
   "repository": {
