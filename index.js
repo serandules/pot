@@ -137,7 +137,7 @@ exports.start = function (done) {
             return done(err);
         }
         var mongodbUri = nconf.get('MONGODB_URI');
-        mongoose.connect(mongodbUri, {useMongoClient: true});
+        mongoose.connect(mongodbUri);
         var db = mongoose.connection;
         db.on('error', function (err) {
             log.error('mongodb connection error: %e', err);
