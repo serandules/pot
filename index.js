@@ -2,13 +2,14 @@ var log = require('logger')('pot');
 var nconf = require('nconf').argv().env();
 var async = require('async');
 var mongoose = require('mongoose');
+var Redis = require('ioredis');
 var request = require('request');
 
-var utils = require('utils');
-
-var env = utils.env();
+var env = nconf.get('ENV');
 
 nconf.defaults(require('./env/' + env + '.json'));
+
+var redis = new Redis(nconf.get('REDIS_URI'));
 
 var initializers = require('initializers');
 var server = require('server');
@@ -18,6 +19,74 @@ var client;
 var admin;
 
 mongoose.Promise = global.Promise;
+
+var updateTiers = function (done) {
+  mongoose.model('tiers').update({name: 'free'}, {
+    apis: {
+      vehicles: {
+        find: {
+          second: 100,
+          day: 1000,
+          month: 10000
+        },
+        create: {
+          second: 100,
+          day: 1000,
+          month: 10000
+        }
+      }
+    },
+    ips: {
+      find: {
+        second: 100,
+        minute: 1000,
+        hour: 10000,
+        day: 100000
+      },
+      create: {
+        second: 100,
+        minute: 1000,
+        hour: 10000,
+        day: 100000
+      }
+    }
+  }, function (err) {
+    if (err) {
+      return done(err);
+    }
+    mongoose.model('tiers').update({name: 'basic'}, {
+      apis: {
+        vehicles: {
+          find: {
+            second: 100,
+            day: 1000,
+            month: 10000
+          },
+          create: {
+            second: 100,
+            day: 1000,
+            month: 10000
+          }
+        }
+      },
+      ips: {
+        find: {
+          second: 100,
+          minute: 1000,
+          hour: 10000,
+          day: 100000
+        },
+        create: {
+          second: 100,
+          minute: 1000,
+          hour: 10000,
+          day: 100000
+        }
+      }
+    }, done);
+  });
+};
+
 
 var createUsers = function (o, numUsers, done) {
     async.whilst(function () {
@@ -136,32 +205,37 @@ exports.start = function (done) {
         if (err) {
             return done(err);
         }
-        var mongodbUri = nconf.get('MONGODB_URI');
-        mongoose.connect(mongodbUri);
-        var db = mongoose.connection;
-        db.on('error', function (err) {
+        redis.flushall(function (err) {
+          if (err) {
+            return done(err);
+          }
+          var mongodbUri = nconf.get('MONGODB_URI');
+          mongoose.connect(mongodbUri);
+          var db = mongoose.connection;
+          db.on('error', function (err) {
             log.error('mongodb connection error: %e', err);
-        });
-        db.once('open', function () {
+          });
+          db.once('open', function () {
             log.info('connected to mongodb : ' + mongodbUri);
             mongoose.connection.db.collections(function (err, collections) {
+              if (err) {
+                return done(err);
+              }
+              async.eachLimit(collections, 1, function (collection, removed) {
+                collection.remove(removed);
+              }, function (err) {
                 if (err) {
-                    return done(err);
+                  return done(err);
                 }
-                async.eachLimit(collections, 1, function (collection, removed) {
-                    collection.remove(removed);
-                }, function (err) {
-                    if (err) {
-                        return done(err);
-                    }
-                    initializers.init(function (err) {
-                        if (err) {
-                            return done(err);
-                        }
-                        server.start(done);
-                    });
+                initializers.init(function (err) {
+                  if (err) {
+                    return done(err);
+                  }
+                  server.start(done);
                 });
+              });
             });
+          });
         });
     });
 };
@@ -211,7 +285,17 @@ exports.client = function (done) {
             return done(new Error(r.statusCode));
         }
         client.serandivesId = b.value.clients.serandives;
-        createUsers(client, numUsers, done);
+        createUsers(client, numUsers, function (err, o) {
+          if (err) {
+            return done(err);
+          }
+          updateTiers(function (err) {
+            if (err) {
+              return done(err);
+            }
+            done(null, o);
+          })
+        });
     });
 };
 
