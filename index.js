@@ -459,36 +459,39 @@ exports.throttlit = function (name, model) {
               var limit = durations[duration];
               var allowed = 0;
               var blocked = 0;
-              async.times(limit + 1, function (i, timesDone) {
-                var verb = vk[i % vl];
-                var uri = uris[verb];
-                var options = {
-                  uri: uri(i),
-                  method: verb
-                };
-                if (verb !== 'HEAD') {
-                  options.json = {};
-                }
-                if (tier === 'basic') {
-                  options.auth = {
-                    bearer: client.users[0].token
+              var delay = (duration === 'second') ? 1000 - Date.now() % 1000 : 0;
+              setTimeout(function () {
+                async.times(limit + 1, function (i, timesDone) {
+                  var verb = vk[i % vl];
+                  var uri = uris[verb];
+                  var options = {
+                    uri: uri(i),
+                    method: verb
+                  };
+                  if (verb !== 'HEAD') {
+                    options.json = {};
                   }
-                }
-                request(options, function (e, r, b) {
-                  if (e) {
-                    return timesDone(e);
+                  if (tier === 'basic') {
+                    options.auth = {
+                      bearer: client.users[0].token
+                    }
                   }
-                  r.statusCode === errors.tooManyRequests().status ? blocked++ : allowed++;
-                  timesDone();
+                  request(options, function (e, r, b) {
+                    if (e) {
+                      return timesDone(e);
+                    }
+                    r.statusCode === errors.tooManyRequests().status ? blocked++ : allowed++;
+                    timesDone();
+                  });
+                }, function (err) {
+                  if (err) {
+                    return itDone(err);
+                  }
+                  blocked.should.equal(1);
+                  allowed.should.equal(limit);
+                  itDone();
                 });
-              }, function (err) {
-                if (err) {
-                  return itDone(err);
-                }
-                blocked.should.equal(1);
-                allowed.should.equal(limit);
-                itDone();
-              });
+              }, delay);
             });
           });
         });
