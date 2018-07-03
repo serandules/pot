@@ -459,39 +459,36 @@ exports.throttlit = function (name, model) {
               var limit = durations[duration];
               var allowed = 0;
               var blocked = 0;
-              var delay = (duration === 'second') ? 1000 - Date.now() % 1000 : 0;
-              setTimeout(function () {
-                async.times(limit + 1, function (i, timesDone) {
-                  var verb = vk[i % vl];
-                  var uri = uris[verb];
-                  var options = {
-                    uri: uri(i),
-                    method: verb
-                  };
-                  if (verb !== 'HEAD') {
-                    options.json = {};
+              async.times(limit + 1, function (i, timesDone) {
+                var verb = vk[i % vl];
+                var uri = uris[verb];
+                var options = {
+                  uri: uri(i),
+                  method: verb
+                };
+                if (verb !== 'HEAD') {
+                  options.json = {};
+                }
+                if (tier === 'basic') {
+                  options.auth = {
+                    bearer: client.users[0].token
                   }
-                  if (tier === 'basic') {
-                    options.auth = {
-                      bearer: client.users[0].token
-                    }
+                }
+                request(options, function (e, r, b) {
+                  if (e) {
+                    return timesDone(e);
                   }
-                  request(options, function (e, r, b) {
-                    if (e) {
-                      return timesDone(e);
-                    }
-                    r.statusCode === errors.tooManyRequests().status ? blocked++ : allowed++;
-                    timesDone();
-                  });
-                }, function (err) {
-                  if (err) {
-                    return itDone(err);
-                  }
-                  blocked.should.equal(1);
-                  allowed.should.equal(limit);
-                  itDone();
+                  r.statusCode === errors.tooManyRequests().status ? blocked++ : allowed++;
+                  timesDone();
                 });
-              }, delay);
+              }, function (err) {
+                if (err) {
+                  return itDone(err);
+                }
+                blocked.should.equal(1);
+                allowed.should.equal(limit);
+                itDone();
+              });
             });
           });
         });
@@ -503,51 +500,51 @@ exports.throttlit = function (name, model) {
 
     define(model + ' apis', 'basic', {
       find: {
-        second: 1,
-        day: 2,
-        month: 3
+        second: 0,
+        day: 1,
+        month: 2
       },
       create: {
-        second: 1,
-        day: 2,
-        month: 3
+        second: 0,
+        day: 1,
+        month: 2
       },
       update: {
-        second: 1,
-        day: 2,
-        month: 3
+        second: 0,
+        day: 1,
+        month: 2
       },
       remove: {
-        second: 1,
-        day: 2,
-        month: 3
+        second: 0,
+        day: 1,
+        month: 2
       }
     });
 
     define(model + ' ips', 'free', {
       find: {
-        second: 1,
-        minute: 2,
-        hour: 3,
-        day: 4
+        second: 0,
+        minute: 1,
+        hour: 2,
+        day: 3
       },
       create: {
-        second: 1,
-        minute: 2,
-        hour: 3,
-        day: 4
+        second: 0,
+        minute: 1,
+        hour: 2,
+        day: 3
       },
       update: {
-        second: 1,
-        minute: 2,
-        hour: 3,
-        day: 4
+        second: 0,
+        minute: 1,
+        hour: 2,
+        day: 3
       },
       remove: {
-        second: 1,
-        minute: 2,
-        hour: 3,
-        day: 4
+        second: 0,
+        minute: 1,
+        hour: 2,
+        day: 3
       }
     });
   });
