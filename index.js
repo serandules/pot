@@ -368,7 +368,7 @@ exports.unthrottle = function (done) {
         day: Number.MAX_VALUE
       }
     }
-  }, done);
+  }, {multi: true}, done);
 };
 
 exports.throttle = function (tiers, done) {
