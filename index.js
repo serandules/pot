@@ -151,10 +151,10 @@ exports.start = function (done) {
       mongoose.connect(mongodbUri);
       var db = mongoose.connection;
       db.on('error', function (err) {
-        log.error('mongodb connection error: %e', err);
+        log.error('db:errored', err);
       });
       db.once('open', function () {
-        log.info('connected to mongodb : ' + mongodbUri);
+        log.info('db:opened', 'uri:%s', mongodbUri);
         mongoose.connection.db.collections(function (err, collections) {
           if (err) {
             return done(err);
