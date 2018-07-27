@@ -10,5 +10,6 @@
   "FACEBOOK_SECRET": "",
   "AWS_KEY": "",
   "AWS_SECRET": "",
-  "CONFIG_BOOT_AUTOS": "cdn:https://d1kdoh4oxh2joj.cloudfront.net/"
+  "CONFIG_BOOT_AUTOS": "cdn:https://d1kdoh4oxh2joj.cloudfront.net/",
+  "SERVICES": "true"
 }
