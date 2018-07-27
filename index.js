@@ -429,6 +429,8 @@ exports.throttlit = function (name, model) {
 
       before(exports.client);
 
+      after(exports.unthrottle);
+
       var methods = ['find', 'create', 'update', 'remove'];
 
       methods.forEach(function (method) {
