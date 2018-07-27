@@ -2,7 +2,7 @@
   "PORT": "6000",
   "MONGODB_URI": "mongodb://127.0.0.1:27017/serandives-travis",
   "REDIS_URI": "redis://127.0.0.1:6379",
-  "SERVER_HOST": "test.serandives.com",
+  "SERVER_HOST": "travis.serandives.com",
   "SERVER_PORT": "4000",
   "CDN": "http://localhost:4040",
   "PASSWORD": "ruchira",
