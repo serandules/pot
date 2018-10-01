@@ -3,7 +3,7 @@
   "MONGODB_URI": "mongodb://127.0.0.1:27017/serandives-travis",
   "REDIS_URI": "redis://127.0.0.1:6379",
   "SERVER_HOST": "travis.serandives.com",
-  "SERVER_PORT": "4000",
+  "SERVER_PORT": "6000",
   "CDN": "http://localhost:4040",
   "PASSWORD": "ruchira",
   "FACEBOOK_ID": "",
@@ -11,5 +11,8 @@
   "AWS_KEY": "",
   "AWS_SECRET": "",
   "CONFIG_BOOT_AUTOS": "cdn:https://d1kdoh4oxh2joj.cloudfront.net/",
-  "SERVICES": "true"
+  "SERVICES": "true",
+  "CAPTCHA_URI": "http://localhost:6060/captcha",
+  "CAPTCHA_KEY": "dummy",
+  "CAPTCHA_SECRET": "dummy"
 }

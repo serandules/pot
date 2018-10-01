@@ -1,11 +1,15 @@
 var log = require('logger')('pot');
 var nconf = require('nconf').argv().env();
 var util = require('util');
+var path = require('path');
 var async = require('async');
+var express = require('express');
 var mongoose = require('mongoose');
 var Redis = require('ioredis');
 var request = require('request');
 var _ = require('lodash');
+var fs = require('fs');
+var bodyParser = require('body-parser');
 
 var errors = require('errors');
 
@@ -20,6 +24,9 @@ var redis = new Redis(nconf.get('REDIS_URI'));
 var initializers = require('initializers');
 var server = require('server');
 
+var mockPort = 6060;
+var mock;
+
 var client;
 
 var admin;
@@ -31,11 +38,14 @@ var createUsers = function (o, numUsers, done) {
     return numUsers-- > 0;
   }, function (iterated) {
     var email = 'user' + numUsers + '@serandives.com';
-    var password = '1@2.Com';
+    var password = exports.password();
     var user = {};
     request({
       uri: exports.resolve('accounts', '/apis/v/users'),
       method: 'POST',
+      headers: {
+        'X-Captcha': 'dummy'
+      },
       json: {
         email: email,
         password: password
@@ -51,11 +61,15 @@ var createUsers = function (o, numUsers, done) {
       request({
         uri: exports.resolve('accounts', '/apis/v/tokens'),
         method: 'POST',
+        headers: {
+          'X-Captcha': 'dummy'
+        },
         form: {
           client_id: o.serandivesId,
           grant_type: 'password',
           username: email,
-          password: password
+          password: password,
+          redirect_uri: exports.resolve('accounts', '/auth')
         },
         json: true
       }, function (e, r, b) {
@@ -80,7 +94,7 @@ var findUsers = function (o, numUsers, done) {
     return numUsers-- > 0;
   }, function (iterated) {
     var email = 'user' + numUsers + '@serandives.com';
-    var password = '1@2.Com';
+    var password = exports.password();
     var user = {};
     request({
       uri: exports.resolve('accounts', '/apis/v/tokens'),
@@ -138,38 +152,64 @@ var findUsers = function (o, numUsers, done) {
   });
 };
 
-exports.start = function (done) {
-  server.install(function (err) {
+var mocks = function (done) {
+  var app = express();
+  app.use(bodyParser.json());
+  fs.readdir(path.join(__dirname, 'mocks'), function (err, files) {
     if (err) {
       return done(err);
     }
-    redis.flushall(function (err) {
+    files.forEach(function (file) {
+      var route = require('./mocks/' + file);
+      route(app);
+    });
+  });
+  mock = app.listen(mockPort, function (err) {
+    if (err) {
+      return done(err);
+    }
+    log.info('mock:started', 'port:%s', mockPort);
+    done();
+  });
+};
+
+exports.start = function (done) {
+  mocks(function (err) {
+    if (err) {
+      return done(err);
+    }
+    server.install(function (err) {
       if (err) {
         return done(err);
       }
-      var mongodbUri = nconf.get('MONGODB_URI');
-      mongoose.connect(mongodbUri);
-      var db = mongoose.connection;
-      db.on('error', function (err) {
-        log.error('db:errored', err);
-      });
-      db.once('open', function () {
-        log.info('db:opened', 'uri:%s', mongodbUri);
-        mongoose.connection.db.collections(function (err, collections) {
-          if (err) {
-            return done(err);
-          }
-          async.eachLimit(collections, 1, function (collection, removed) {
-            collection.remove(removed);
-          }, function (err) {
+      redis.flushall(function (err) {
+        if (err) {
+          return done(err);
+        }
+        var mongodbUri = nconf.get('MONGODB_URI');
+        mongoose.connect(mongodbUri);
+        var db = mongoose.connection;
+        db.on('error', function (err) {
+          log.error('db:errored', err);
+        });
+        db.once('open', function () {
+          log.info('db:opened', 'uri:%s', mongodbUri);
+          mongoose.connection.db.collections(function (err, collections) {
             if (err) {
               return done(err);
             }
-            initializers.init(function (err) {
+            async.eachLimit(collections, 1, function (collection, removed) {
+              collection.remove(removed);
+            }, function (err) {
               if (err) {
                 return done(err);
               }
-              server.start(done);
+              initializers.init(function (err) {
+                if (err) {
+                  return done(err);
+                }
+                server.start(done);
+              });
             });
           });
         });
@@ -179,8 +219,19 @@ exports.start = function (done) {
 };
 
 exports.stop = function (done) {
-  server.stop(function () {
-    mongoose.disconnect(done);
+  server.stop(function (err) {
+    if (err) {
+      return done(err);
+    }
+    mongoose.disconnect(function (err) {
+      if (err) {
+        return done(err);
+      }
+      if (!mock) {
+        return done()
+      }
+      mock.close(done);
+    });
   });
 };
 
@@ -205,6 +256,10 @@ exports.resolve = function (domain, path) {
   return 'http://' + prefix + '.serandives.com:' + nconf.get('PORT') + path;
 };
 
+exports.password = function () {
+  return '1@2.Com';
+};
+
 exports.client = function (done) {
   if (client) {
     return done(null, client);
@@ -224,6 +279,9 @@ exports.client = function (done) {
     }
     client.serandivesId = b.value.clients.serandives;
     createUsers(client, numUsers, function (err) {
+      if (err) {
+        return done(err);
+      }
       exports.unthrottle(function (err) {
         if (err) {
           return done(err);
@@ -246,11 +304,15 @@ exports.admin = function (done) {
     request({
       uri: exports.resolve('accounts', '/apis/v/tokens'),
       method: 'POST',
+      headers: {
+        'X-Captcha': 'dummy'
+      },
       form: {
         client_id: client.serandivesId,
         grant_type: 'password',
         username: 'admin@serandives.com',
-        password: nconf.get('PASSWORD')
+        password: nconf.get('PASSWORD'),
+        redirect_uri: exports.resolve('accounts', '/auth')
       },
       json: true
     }, function (e, r, token) {
