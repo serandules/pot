@@ -5,13 +5,12 @@ var path = require('path');
 var async = require('async');
 var express = require('express');
 var mongoose = require('mongoose');
+var should = require('should');
 var Redis = require('ioredis');
 var request = require('request');
 var _ = require('lodash');
 var fs = require('fs');
 var bodyParser = require('body-parser');
-
-var errors = require('errors');
 
 mongoose.Promise = global.Promise;
 
@@ -21,6 +20,7 @@ nconf.defaults(require('./env/' + env + '.json'));
 
 var redis = new Redis(nconf.get('REDIS_URI'));
 
+var errors = require('errors');
 var initializers = require('initializers');
 var server = require('server');
 
@@ -159,17 +159,21 @@ var mocks = function (done) {
     if (err) {
       return done(err);
     }
-    files.forEach(function (file) {
+    async.eachSeries(files, function (file, eachDone) {
       var route = require('./mocks/' + file);
-      route(app);
+      route(app, eachDone);
+    }, function (err) {
+      if (err) {
+        return done(err);
+      }
+      mock = app.listen(mockPort, function (err) {
+        if (err) {
+          return done(err);
+        }
+        log.info('mock:started', 'port:%s', mockPort);
+        done();
+      });
     });
-  });
-  mock = app.listen(mockPort, function (err) {
-    if (err) {
-      return done(err);
-    }
-    log.info('mock:started', 'port:%s', mockPort);
-    done();
   });
 };
 
@@ -256,6 +260,14 @@ exports.resolve = function (domain, path) {
   return 'http://' + prefix + '.serandives.com:' + nconf.get('PORT') + path;
 };
 
+exports.clone = function (o) {
+  var clone = _.cloneDeep(o);
+  delete clone.user;
+  delete clone.permissions;
+  delete clone.id;
+  return clone;
+};
+
 exports.password = function () {
   return '1@2.Com';
 };
@@ -267,8 +279,15 @@ exports.client = function (done) {
   var numUsers = 3;
   client = {users: []};
   request({
-    uri: exports.resolve('accounts', '/apis/v/configs/boot'),
+    uri: exports.resolve('accounts', '/apis/v/configs'),
     method: 'GET',
+    qs: {
+      data: JSON.stringify({
+        query: {
+          name: 'boot'
+        }
+      })
+    },
     json: true
   }, function (e, r, b) {
     if (e) {
@@ -277,16 +296,29 @@ exports.client = function (done) {
     if (r.statusCode !== 200) {
       return done(new Error(r.statusCode));
     }
-    client.serandivesId = b.value.clients.serandives;
+    if (!b.length) {
+      return done(new Error('!b.length'));
+    }
+    var boot = b[0];
+    if (boot.name !== 'boot') {
+      return done(new Error('boot.name !== \'boot\''));
+    }
+    client.serandivesId = boot.value.clients.serandives;
     createUsers(client, numUsers, function (err) {
       if (err) {
         return done(err);
       }
-      exports.unthrottle(function (err) {
+      exports.admin(function (err, admin) {
         if (err) {
           return done(err);
         }
-        done(null, client);
+        client.admin = admin;
+        exports.unthrottle(function (err) {
+          if (err) {
+            return done(err);
+          }
+          done(null, client);
+        });
       });
     });
   });
@@ -322,7 +354,6 @@ exports.admin = function (done) {
       if (r.statusCode !== 200) {
         return done(new Error(r.statusCode));
       }
-      admin.token = token;
       var accessToken = token.access_token;
       request({
         uri: exports.resolve('accounts', '/apis/v/tokens/' + token.id),
@@ -352,6 +383,7 @@ exports.admin = function (done) {
           if (r.statusCode !== 200) {
             return done(new Error(r.statusCode));
           }
+          admin.token = accessToken;
           admin.profile = user;
           done(null, admin);
         });
@@ -362,8 +394,15 @@ exports.admin = function (done) {
 
 exports.groups = function (done) {
   request({
-    uri: exports.resolve('accounts', '/apis/v/configs/groups'),
+    uri: exports.resolve('accounts', '/apis/v/configs'),
     method: 'GET',
+    qs: {
+      data: JSON.stringify({
+        query: {
+          name: 'groups'
+        }
+      })
+    },
     json: true
   }, function (e, r, b) {
     if (e) {
@@ -372,8 +411,15 @@ exports.groups = function (done) {
     if (r.statusCode !== 200) {
       return done(new Error(r.statusCode));
     }
+    if (!b.length) {
+      return done(new Error('!b.length'));
+    }
+    var groupz = b[0];
+    if (groupz.name !== 'groups') {
+      return done(new Error('groups.name !== \'groups\''));
+    }
     var groups = {};
-    b.value.forEach(function (group) {
+    groupz.value.forEach(function (group) {
       groups[group.name] = group;
     });
     done(null, groups);
