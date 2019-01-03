@@ -48,7 +48,8 @@ var createUsers = function (o, numUsers, done) {
       },
       json: {
         email: email,
-        password: password
+        password: password,
+        alias: 'user' + numUsers
       }
     }, function (e, r, b) {
       if (e) {
