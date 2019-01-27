@@ -33,32 +33,58 @@ var admin;
 
 var limits;
 
-var createUsers = function (o, numUsers, done) {
-  async.whilst(function () {
-    return numUsers-- > 0;
-  }, function (iterated) {
-    var email = 'user' + numUsers + '@serandives.com';
-    var password = exports.password();
-    var user = {};
+exports.confirmEmail = function (user, done) {
+  var Users = mongoose.model('users');
+  var Otps = mongoose.model('otps');
+  Otps.findOne({
+    user: user.id,
+    name: 'accounts-confirm'
+  }, function (err, otp) {
+    if (err) {
+      return done(err);
+    }
     request({
-      uri: exports.resolve('accounts', '/apis/v/users'),
-      method: 'POST',
+      uri: exports.resolve('accounts', '/apis/v/users/' + user.id),
+      method: 'PUT',
       headers: {
-        'X-Captcha': 'dummy'
+        'X-OTP': otp.value,
+        'X-Action': 'confirm'
       },
-      json: {
-        email: email,
-        password: password,
-        alias: 'user' + numUsers
-      }
+      json: {}
     }, function (e, r, b) {
       if (e) {
-        return iterated(e);
+        return done(e);
       }
-      if (r.statusCode !== 201) {
-        return iterated(new Error(r.statusCode));
+      if (r.statusCode !== 204) {
+        return done(new Error(r.statusCode));
       }
-      user.profile = b;
+      done();
+    });
+  });
+};
+
+exports.createUser = function (clientId, usr, done) {
+  request({
+    uri: exports.resolve('accounts', '/apis/v/users'),
+    method: 'POST',
+    headers: {
+      'X-Captcha': 'dummy'
+    },
+    json: usr
+  }, function (e, r, user) {
+    if (e) {
+      return done(e);
+    }
+    if (r.statusCode !== 201) {
+      return done(new Error(r.statusCode));
+    }
+    should.exist(user.id);
+    should.exist(user.email);
+    user.email.should.equal(usr.email);
+    exports.confirmEmail(user, function (err) {
+      if (err) {
+        return done(err);
+      }
       request({
         uri: exports.resolve('accounts', '/apis/v/tokens'),
         method: 'POST',
@@ -66,24 +92,47 @@ var createUsers = function (o, numUsers, done) {
           'X-Captcha': 'dummy'
         },
         form: {
-          client_id: o.serandivesId,
+          client_id: clientId,
           grant_type: 'password',
-          username: email,
-          password: password,
+          username: usr.email,
+          password: usr.password,
           redirect_uri: exports.resolve('accounts', '/auth')
         },
         json: true
-      }, function (e, r, b) {
+      }, function (e, r, token) {
         if (e) {
-          return iterated(e);
+          return done(e);
         }
         if (r.statusCode !== 200) {
-          return iterated(new Error(r.statusCode));
+          return done(new Error(r.statusCode));
         }
-        user.token = b.access_token;
-        o.users.push(user);
-        iterated();
+        should.exist(token.access_token);
+        should.exist(token.refresh_token);
+        done(null, user, token);
       });
+    });
+  });
+};
+
+var createUsers = function (o, numUsers, done) {
+  async.whilst(function () {
+    return numUsers-- > 0;
+  }, function (iterated) {
+    var email = 'user' + numUsers + '@serandives.com';
+    var password = exports.password();
+    var user = {};
+    exports.createUser(o.serandivesId, {
+      email: email,
+      password: password,
+      alias: 'user' + numUsers
+    }, function (err, usr, token) {
+      if (err) {
+        return iterated(err);
+      }
+      user.profile = usr;
+      user.token = token.access_token;
+      o.users.push(user);
+      iterated();
     });
   }, function (err) {
     done(err, o);
