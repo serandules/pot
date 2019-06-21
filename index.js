@@ -709,3 +709,61 @@ exports.throttlit = function (name, model) {
     });
   });
 };
+
+exports.publish = function (domain, model, id, owner, reviewer, done) {
+  request({
+    uri: exports.resolve(domain, '/apis/v/' + model + '/' + id),
+    method: 'POST',
+    headers: {
+      'X-Action': 'transit'
+    },
+    auth: {
+      bearer: owner
+    },
+    json: {
+      action: 'review'
+    }
+  }, function (e, r, b) {
+    if (e) {
+      return done(e);
+    }
+    r.statusCode.should.equal(204);
+    request({
+      uri: exports.resolve(domain, '/apis/v/' + model + '/' + id),
+      method: 'POST',
+      headers: {
+        'X-Action': 'transit'
+      },
+      auth: {
+        bearer: reviewer
+      },
+      json: {
+        action: 'approve'
+      }
+    }, function (e, r, b) {
+      if (e) {
+        return done(e);
+      }
+      r.statusCode.should.equal(204);
+      request({
+        uri: exports.resolve(domain, '/apis/v/' + model + '/' + id),
+        method: 'POST',
+        headers: {
+          'X-Action': 'transit'
+        },
+        auth: {
+          bearer: owner
+        },
+        json: {
+          action: 'publish'
+        }
+      }, function (e, r, b) {
+        if (e) {
+          return done(e);
+        }
+        r.statusCode.should.equal(204);
+        done();
+      });
+    });
+  });
+};
