@@ -326,7 +326,7 @@ exports.client = function (done) {
   if (client) {
     return done(null, client);
   }
-  var numUsers = 3;
+  var numUsers = 4;
   client = {users: []};
   request({
     uri: exports.resolve('accounts', '/apis/v/configs'),
@@ -710,7 +710,8 @@ exports.throttlit = function (name, model) {
   });
 };
 
-exports.publish = function (domain, model, id, owner, reviewer, done) {
+
+exports.transit = function (domain, model, id, user, action, done) {
   request({
     uri: exports.resolve(domain, '/apis/v/' + model + '/' + id),
     method: 'POST',
@@ -718,52 +719,30 @@ exports.publish = function (domain, model, id, owner, reviewer, done) {
       'X-Action': 'transit'
     },
     auth: {
-      bearer: owner
+      bearer: user
     },
     json: {
-      action: 'review'
+      action: action
     }
   }, function (e, r, b) {
     if (e) {
       return done(e);
     }
     r.statusCode.should.equal(204);
-    request({
-      uri: exports.resolve(domain, '/apis/v/' + model + '/' + id),
-      method: 'POST',
-      headers: {
-        'X-Action': 'transit'
-      },
-      auth: {
-        bearer: reviewer
-      },
-      json: {
-        action: 'approve'
+    done();
+  });
+};
+
+exports.publish = function (domain, model, id, owner, reviewer, done) {
+  exports.transit(domain, model, id, owner, 'review', function (err) {
+    if (err) {
+      return done(err);
+    }
+    exports.transit(domain, model, id, reviewer, 'approve', function (err) {
+      if (err) {
+        return done(err);
       }
-    }, function (e, r, b) {
-      if (e) {
-        return done(e);
-      }
-      r.statusCode.should.equal(204);
-      request({
-        uri: exports.resolve(domain, '/apis/v/' + model + '/' + id),
-        method: 'POST',
-        headers: {
-          'X-Action': 'transit'
-        },
-        auth: {
-          bearer: owner
-        },
-        json: {
-          action: 'publish'
-        }
-      }, function (e, r, b) {
-        if (e) {
-          return done(e);
-        }
-        r.statusCode.should.equal(204);
-        done();
-      });
+      exports.transit(domain, model, id, owner, 'publish', done);
     });
   });
 };
