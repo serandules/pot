@@ -329,7 +329,7 @@ exports.client = function (done) {
   var numUsers = 4;
   client = {users: []};
   request({
-    uri: exports.resolve('accounts', '/apis/v/configs'),
+    uri: exports.resolve('www', '/apis/v/configs'),
     method: 'GET',
     qs: {
       data: JSON.stringify({
@@ -444,7 +444,7 @@ exports.admin = function (done) {
 
 exports.groups = function (done) {
   request({
-    uri: exports.resolve('accounts', '/apis/v/configs'),
+    uri: exports.resolve('www', '/apis/v/configs'),
     method: 'GET',
     qs: {
       data: JSON.stringify({
