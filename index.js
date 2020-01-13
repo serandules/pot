@@ -45,9 +45,9 @@ exports.confirmEmail = function (user, done) {
     }
     request({
       uri: exports.resolve('accounts', '/apis/v/users/' + user.id),
-      method: 'PUT',
+      method: 'POST',
       headers: {
-        'X-OTP': otp.value,
+        'X-OTP': otp.strong,
         'X-Action': 'confirm'
       },
       json: {}
@@ -731,6 +731,15 @@ exports.transit = function (domain, model, id, user, action, done) {
     r.statusCode.should.equal(204);
     done();
   });
+};
+
+exports.traverse = function (domain, model, id, user, actions, done) {
+  async.whilst(function () {
+    return actions.length;
+  }, function (whilstDone) {
+    var action = actions.shift();
+    exports.transit(domain, model, id, user, action, whilstDone);
+  }, done);
 };
 
 exports.publish = function (domain, model, id, owner, reviewer, done) {
