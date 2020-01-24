@@ -553,34 +553,45 @@ exports.throttle = function (tiers, done) {
   });
 };
 
-exports.throttlit = function (name, model) {
+exports.throttlit = function (name, model, tiers, actions) {
   var byMethod = {
     find: {
       GET: function (i) {
-        return exports.resolve(name, '/apis/v/' + model + (i % 2 === 0 ? '' : '/' + 'dummy'))
+        return {
+          url: exports.resolve(name, '/apis/v/' + model + (i % 2 === 0 ? '' : '/' + 'dummy'))
+        }
       },
       HEAD: function (i) {
-        return exports.resolve(name, '/apis/v/' + model + (i % 2 === 0 ? '' : '/' + 'dummy'))
+        return {
+          url: exports.resolve(name, '/apis/v/' + model + (i % 2 === 0 ? '' : '/' + 'dummy'))
+        }
       }
     },
     create: {
       POST: function (i) {
-        return exports.resolve(name, '/apis/v/' + model)
+        return {
+          url: exports.resolve(name, '/apis/v/' + model)
+        }
       }
     },
     update: {
       PUT: function (i) {
-        return exports.resolve(name, '/apis/v/' + model + '/dummy')
+        return {
+          url: exports.resolve(name, '/apis/v/' + model + '/dummy')
+        }
       }
     },
     remove: {
       DELETE: function (i) {
-        return exports.resolve(name, '/apis/v/' + model + '/dummy')
+        return {
+          url: exports.resolve(name, '/apis/v/' + model + '/dummy')
+        }
       }
     }
   };
 
-  var suite = 'throttle ' + model;
+  byMethod = {}
+  _.merge(byMethod, actions || {});
 
   var define = function (suite, tier, limits) {
     describe(suite, function () {
@@ -589,11 +600,9 @@ exports.throttlit = function (name, model) {
 
       after(exports.unthrottle);
 
-      var methods = ['find', 'create', 'update', 'remove'];
-
-      methods.forEach(function (method) {
-        var uris = byMethod[method];
-        var vk = Object.keys(uris);
+      Object.keys(byMethod).forEach(function (method) {
+        var oo = byMethod[method];
+        var vk = Object.keys(oo);
         var vl = vk.length;
         var durations = limits[method] || limits['*'];
         Object.keys(durations).forEach(function (duration) {
@@ -621,11 +630,10 @@ exports.throttlit = function (name, model) {
               var blocked = 0;
               async.times(limit + 1, function (i, timesDone) {
                 var verb = vk[i % vl];
-                var uri = uris[verb];
-                var options = {
-                  uri: uri(i),
+                var opts = oo[verb];
+                var options = _.merge(opts(i), {
                   method: verb
-                };
+                });
                 if (verb !== 'HEAD') {
                   options.json = {};
                 }
@@ -658,7 +666,7 @@ exports.throttlit = function (name, model) {
 
   describe('throttle', function () {
 
-    define(model + ' apis', 'basic', {
+    define(model + ' apis', 'basic', _.merge({
       find: {
         second: 0,
         day: 1,
@@ -679,9 +687,9 @@ exports.throttlit = function (name, model) {
         day: 1,
         month: 2
       }
-    });
+    }, tiers && tiers.apis || {}));
 
-    define(model + ' ips', 'free', {
+    define(model + ' ips', 'free', _.merge({
       find: {
         second: 0,
         minute: 1,
@@ -706,7 +714,7 @@ exports.throttlit = function (name, model) {
         hour: 2,
         day: 3
       }
-    });
+    }, tiers && tiers.ips || {}));
   });
 };
 
