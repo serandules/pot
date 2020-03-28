@@ -124,7 +124,7 @@ var createUsers = function (o, numUsers, done) {
     exports.createUser(o.serandivesId, {
       email: email,
       password: password,
-      alias: 'user' + numUsers
+      username: 'user' + numUsers
     }, function (err, usr, token) {
       if (err) {
         return iterated(err);
