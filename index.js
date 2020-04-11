@@ -353,7 +353,7 @@ exports.client = function (done) {
     if (boot.name !== 'boot') {
       return done(new Error('boot.name !== \'boot\''));
     }
-    client.serandivesId = boot.value.clients.serandives;
+    client.serandivesId = boot.value.clients.serandives.id;
     createUsers(client, numUsers, function (err) {
       if (err) {
         return done(err);
@@ -717,7 +717,6 @@ exports.throttlit = function (name, model, tiers, actions) {
     }, tiers && tiers.ips || {}));
   });
 };
-
 
 exports.transit = function (domain, model, id, user, action, done) {
   request({
