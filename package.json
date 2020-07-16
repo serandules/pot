@@ -12,7 +12,7 @@
     "node-uuid": "1.*",
     "mongoose": "5.1.8",
     "request": "2.81.0",
-    "lodash": "4.17.4",
+    "lodash": "4.17.19",
     "express": "4.*",
     "logger": "serandules/logger#master",
     "initializers": "serandules/initializers#master",
