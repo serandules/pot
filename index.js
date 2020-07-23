@@ -44,7 +44,7 @@ exports.confirmEmail = function (user, done) {
       return done(err);
     }
     request({
-      uri: exports.resolve('accounts', '/apis/v/users/' + user.id),
+      uri: exports.resolve('apis', '/v/users/' + user.id),
       method: 'POST',
       headers: {
         'X-OTP': otp.strong,
@@ -65,7 +65,7 @@ exports.confirmEmail = function (user, done) {
 
 exports.createUser = function (clientId, usr, done) {
   request({
-    uri: exports.resolve('accounts', '/apis/v/users'),
+    uri: exports.resolve('apis', '/v/users'),
     method: 'POST',
     headers: {
       'X-Captcha': 'dummy'
@@ -86,7 +86,7 @@ exports.createUser = function (clientId, usr, done) {
         return done(err);
       }
       request({
-        uri: exports.resolve('accounts', '/apis/v/tokens'),
+        uri: exports.resolve('apis', '/v/tokens'),
         method: 'POST',
         headers: {
           'X-Captcha': 'dummy'
@@ -147,7 +147,7 @@ var findUsers = function (o, numUsers, done) {
     var password = exports.password();
     var user = {};
     request({
-      uri: exports.resolve('accounts', '/apis/v/tokens'),
+      uri: exports.resolve('apis', '/v/tokens'),
       method: 'POST',
       json: {
         client_id: o.serandivesId,
@@ -164,7 +164,7 @@ var findUsers = function (o, numUsers, done) {
       }
       user.token = b.access_token;
       request({
-        uri: exports.resolve('accounts', '/apis/v/tokens/' + b.id),
+        uri: exports.resolve('apis', '/v/tokens/' + b.id),
         method: 'GET',
         auth: {
           bearer: user.token
@@ -178,7 +178,7 @@ var findUsers = function (o, numUsers, done) {
           return iterated(new Error(r.statusCode));
         }
         request({
-          uri: exports.resolve('accounts', '/apis/v/users/' + b.user),
+          uri: exports.resolve('apis', '/v/users/' + b.user),
           method: 'GET',
           auth: {
             bearer: user.token
@@ -329,7 +329,7 @@ exports.client = function (done) {
   var numUsers = 4;
   client = {users: []};
   request({
-    uri: exports.resolve('www', '/apis/v/configs'),
+    uri: exports.resolve('apis', '/v/configs'),
     method: 'GET',
     qs: {
       data: JSON.stringify({
@@ -384,7 +384,7 @@ exports.admin = function (done) {
       return done(err);
     }
     request({
-      uri: exports.resolve('accounts', '/apis/v/tokens'),
+      uri: exports.resolve('apis', '/v/tokens'),
       method: 'POST',
       headers: {
         'X-Captcha': 'dummy'
@@ -406,7 +406,7 @@ exports.admin = function (done) {
       }
       var accessToken = token.access_token;
       request({
-        uri: exports.resolve('accounts', '/apis/v/tokens/' + token.id),
+        uri: exports.resolve('apis', '/v/tokens/' + token.id),
         method: 'GET',
         auth: {
           bearer: accessToken
@@ -420,7 +420,7 @@ exports.admin = function (done) {
           return done(new Error(r.statusCode));
         }
         request({
-          uri: exports.resolve('accounts', '/apis/v/users/' + b.user),
+          uri: exports.resolve('apis', '/v/users/' + b.user),
           method: 'GET',
           auth: {
             bearer: accessToken
@@ -444,7 +444,7 @@ exports.admin = function (done) {
 
 exports.groups = function (done) {
   request({
-    uri: exports.resolve('www', '/apis/v/configs'),
+    uri: exports.resolve('apis', '/v/configs'),
     method: 'GET',
     qs: {
       data: JSON.stringify({
@@ -558,33 +558,33 @@ exports.throttlit = function (name, model, tiers, actions) {
     find: {
       GET: function (i) {
         return {
-          url: exports.resolve(name, '/apis/v/' + model + (i % 2 === 0 ? '' : '/' + 'dummy'))
+          url: exports.resolve(name, '/v/' + model + (i % 2 === 0 ? '' : '/' + 'dummy'))
         }
       },
       HEAD: function (i) {
         return {
-          url: exports.resolve(name, '/apis/v/' + model + (i % 2 === 0 ? '' : '/' + 'dummy'))
+          url: exports.resolve(name, '/v/' + model + (i % 2 === 0 ? '' : '/' + 'dummy'))
         }
       }
     },
     create: {
       POST: function (i) {
         return {
-          url: exports.resolve(name, '/apis/v/' + model)
+          url: exports.resolve(name, '/v/' + model)
         }
       }
     },
     update: {
       PUT: function (i) {
         return {
-          url: exports.resolve(name, '/apis/v/' + model + '/dummy')
+          url: exports.resolve(name, '/v/' + model + '/dummy')
         }
       }
     },
     remove: {
       DELETE: function (i) {
         return {
-          url: exports.resolve(name, '/apis/v/' + model + '/dummy')
+          url: exports.resolve(name, '/v/' + model + '/dummy')
         }
       }
     }
@@ -718,9 +718,9 @@ exports.throttlit = function (name, model, tiers, actions) {
   });
 };
 
-exports.transit = function (domain, model, id, user, action, done) {
+exports.transit = function (model, id, user, action, done) {
   request({
-    uri: exports.resolve(domain, '/apis/v/' + model + '/' + id),
+    uri: exports.resolve('apis', '/v/' + model + '/' + id),
     method: 'POST',
     headers: {
       'X-Action': 'transit'
@@ -740,25 +740,25 @@ exports.transit = function (domain, model, id, user, action, done) {
   });
 };
 
-exports.traverse = function (domain, model, id, user, actions, done) {
+exports.traverse = function (model, id, user, actions, done) {
   async.whilst(function () {
     return actions.length;
   }, function (whilstDone) {
     var action = actions.shift();
-    exports.transit(domain, model, id, user, action, whilstDone);
+    exports.transit(model, id, user, action, whilstDone);
   }, done);
 };
 
-exports.publish = function (domain, model, id, owner, reviewer, done) {
-  exports.transit(domain, model, id, owner, 'review', function (err) {
+exports.publish = function (model, id, owner, reviewer, done) {
+  exports.transit(model, id, owner, 'review', function (err) {
     if (err) {
       return done(err);
     }
-    exports.transit(domain, model, id, reviewer, 'approve', function (err) {
+    exports.transit(model, id, reviewer, 'approve', function (err) {
       if (err) {
         return done(err);
       }
-      exports.transit(domain, model, id, owner, 'publish', done);
+      exports.transit(model, id, owner, 'publish', done);
     });
   });
 };
