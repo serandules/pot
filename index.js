@@ -23,6 +23,9 @@ var redis = new Redis(nconf.get('REDIS_URI'));
 var errors = require('errors');
 var initializers = require('initializers');
 var server = require('server');
+var utils = require('utils');
+
+var Otps = utils.model('otps');
 
 var mockPort = 6060;
 var mock;
@@ -34,8 +37,6 @@ var admin;
 var limits;
 
 exports.confirmEmail = function (user, done) {
-  var Users = mongoose.model('users');
-  var Otps = mongoose.model('otps');
   Otps.findOne({
     user: user.id,
     name: 'accounts-confirm'
@@ -232,38 +233,33 @@ exports.start = function (done) {
     if (err) {
       return done(err);
     }
-    server.install(function (err) {
+    redis.flushall(function (err) {
       if (err) {
         return done(err);
       }
-      redis.flushall(function (err) {
-        if (err) {
-          return done(err);
-        }
-        var mongodbUri = nconf.get('MONGODB_URI');
-        mongoose.connect(mongodbUri);
-        var db = mongoose.connection;
-        db.on('error', function (err) {
-          log.error('db:errored', err);
-        });
-        db.once('open', function () {
-          log.info('db:opened', 'uri:%s', mongodbUri);
-          mongoose.connection.db.collections(function (err, collections) {
+      var mongodbUri = nconf.get('MONGODB_URI');
+      mongoose.connect(mongodbUri);
+      var db = mongoose.connection;
+      db.on('error', function (err) {
+        log.error('db:errored', err);
+      });
+      db.once('open', function () {
+        log.info('db:opened', 'uri:%s', mongodbUri);
+        mongoose.connection.db.collections(function (err, collections) {
+          if (err) {
+            return done(err);
+          }
+          async.eachLimit(collections, 1, function (collection, removed) {
+            collection.remove(removed);
+          }, function (err) {
             if (err) {
               return done(err);
             }
-            async.eachLimit(collections, 1, function (collection, removed) {
-              collection.remove(removed);
-            }, function (err) {
+            initializers.init(function (err) {
               if (err) {
                 return done(err);
               }
-              initializers.init(function (err) {
-                if (err) {
-                  return done(err);
-                }
-                server.start(done);
-              });
+              server.start(done);
             });
           });
         });
