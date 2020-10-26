@@ -14,8 +14,6 @@ var bodyParser = require('body-parser');
 
 mongoose.Promise = global.Promise;
 
-var env = nconf.get('ENV');
-
 var redis = new Redis(nconf.get('REDIS_URI'));
 
 var errors = require('errors');
@@ -285,6 +283,7 @@ exports.drop = function (drop, done) {
 };
 
 exports.resolve = function (domain, path) {
+  var env = nconf.get('ENV');
   var prefix = (env === 'test' || env === 'travis') ? env : env + '.' + domain;
   return 'http://' + prefix + '.serandives.com:' + nconf.get('PORT') + path;
 };
