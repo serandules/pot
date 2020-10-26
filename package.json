@@ -15,9 +15,7 @@
     "lodash": "4.17.4",
     "express": "4.*",
     "logger": "serandules/logger#master",
-    "initializers": "serandules/initializers#master",
-    "utils": "serandules/utils#master",
-    "server": "serandules/server#master"
+    "utils": "serandules/utils#master"
   },
   "repository": {
     "type": "git",

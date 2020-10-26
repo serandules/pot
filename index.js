@@ -1,5 +1,5 @@
 var log = require('logger')('pot');
-var nconf = require('nconf').argv().env();
+var nconf = require('nconf');
 var util = require('util');
 var path = require('path');
 var async = require('async');
@@ -16,16 +16,9 @@ mongoose.Promise = global.Promise;
 
 var env = nconf.get('ENV');
 
-nconf.defaults(require('./env/' + env + '.json'));
-
 var redis = new Redis(nconf.get('REDIS_URI'));
 
 var errors = require('errors');
-var initializers = require('initializers');
-var server = require('server');
-var utils = require('utils');
-
-var Otps = utils.model('otps');
 
 var mockPort = 6060;
 var mock;
@@ -36,8 +29,8 @@ var admin;
 
 var limits;
 
-exports.confirmEmail = function (user, done) {
-  Otps.findOne({
+exports.confirmEmail = function (sera, user, done) {
+  sera.model('otps').findOne({
     user: user.id,
     name: 'accounts-confirm'
   }, function (err, otp) {
@@ -64,7 +57,7 @@ exports.confirmEmail = function (user, done) {
   });
 };
 
-exports.createUser = function (clientId, usr, done) {
+exports.createUser = function (sera, clientId, usr, done) {
   request({
     uri: exports.resolve('apis', '/v/users'),
     method: 'POST',
@@ -82,7 +75,7 @@ exports.createUser = function (clientId, usr, done) {
     should.exist(user.id);
     should.exist(user.email);
     user.email.should.equal(usr.email);
-    exports.confirmEmail(user, function (err) {
+    exports.confirmEmail(sera, user, function (err) {
       if (err) {
         return done(err);
       }
@@ -115,14 +108,14 @@ exports.createUser = function (clientId, usr, done) {
   });
 };
 
-var createUsers = function (o, numUsers, done) {
+var createUsers = function (sera, o, numUsers, done) {
   async.whilst(function () {
     return numUsers-- > 0;
   }, function (iterated) {
     var email = 'user' + numUsers + '@serandives.com';
     var password = exports.password();
     var user = {};
-    exports.createUser(o.serandivesId, {
+    exports.createUser(sera, o.serandivesId, {
       email: email,
       password: password,
       username: 'user' + numUsers
@@ -251,25 +244,15 @@ exports.start = function (done) {
           }
           async.eachLimit(collections, 1, function (collection, removed) {
             collection.remove(removed);
-          }, function (err) {
-            if (err) {
-              return done(err);
-            }
-            initializers.init(function (err) {
-              if (err) {
-                return done(err);
-              }
-              server.start(done);
-            });
-          });
+          }, done);
         });
       });
     });
   });
 };
 
-exports.stop = function (done) {
-  server.stop(function (err) {
+exports.stop = function (destroy, done) {
+  destroy(function (err) {
     if (err) {
       return done(err);
     }
@@ -318,7 +301,7 @@ exports.password = function () {
   return '1@2.Com';
 };
 
-exports.client = function (done) {
+exports.client = function (sera, done) {
   if (client) {
     return done(null, client);
   }
@@ -350,11 +333,11 @@ exports.client = function (done) {
       return done(new Error('boot.name !== \'boot\''));
     }
     client.serandivesId = boot.value.clients.serandives.id;
-    createUsers(client, numUsers, function (err) {
+    createUsers(sera, client, numUsers, function (err) {
       if (err) {
         return done(err);
       }
-      exports.admin(function (err, admin) {
+      exports.admin(sera, function (err, admin) {
         if (err) {
           return done(err);
         }
@@ -370,12 +353,12 @@ exports.client = function (done) {
   });
 };
 
-exports.admin = function (done) {
+exports.admin = function (sera, done) {
   if (admin) {
     return done(null, admin);
   }
   admin = {};
-  exports.client(function (err, client) {
+  exports.client(sera, function (err, client) {
     if (err) {
       return done(err);
     }
@@ -549,7 +532,7 @@ exports.throttle = function (tiers, done) {
   });
 };
 
-exports.throttlit = function (name, model, tiers, actions) {
+exports.throttlit = function (sera, name, model, tiers, actions) {
   var byMethod = {
     find: {
       GET: function (i) {
@@ -592,7 +575,9 @@ exports.throttlit = function (name, model, tiers, actions) {
   var define = function (suite, tier, limits) {
     describe(suite, function () {
 
-      before(exports.client);
+      before(function (done) {
+        exports.client(sera, done);
+      });
 
       after(exports.unthrottle);
 
