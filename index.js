@@ -12,6 +12,8 @@ var _ = require('lodash');
 var fs = require('fs');
 var bodyParser = require('body-parser');
 
+var cdn = require('cdn');
+
 mongoose.Promise = global.Promise;
 
 var redis = new Redis(nconf.get('REDIS_URI'));
@@ -19,6 +21,7 @@ var redis = new Redis(nconf.get('REDIS_URI'));
 var errors = require('errors');
 
 var mockPort = 6060;
+var cdnPort = 4040;
 var mock;
 
 var client;
@@ -195,25 +198,30 @@ var findUsers = function (o, numUsers, done) {
 };
 
 var mocks = function (done) {
-  var app = express();
-  app.use(bodyParser.json());
-  fs.readdir(path.join(__dirname, 'mocks'), function (err, files) {
+  cdn.start(cdnPort, function (err) {
     if (err) {
       return done(err);
     }
-    async.eachSeries(files, function (file, eachDone) {
-      var route = require('./mocks/' + file);
-      route(app, eachDone);
-    }, function (err) {
+    var app = express();
+    app.use(bodyParser.json());
+    fs.readdir(path.join(__dirname, 'mocks'), function (err, files) {
       if (err) {
         return done(err);
       }
-      mock = app.listen(mockPort, function (err) {
+      async.eachSeries(files, function (file, eachDone) {
+        var route = require('./mocks/' + file);
+        route(app, eachDone);
+      }, function (err) {
         if (err) {
           return done(err);
         }
-        log.info('mock:started', 'port:%s', mockPort);
-        done();
+        mock = app.listen(mockPort, function (err) {
+          if (err) {
+            return done(err);
+          }
+          log.info('mock:started', 'port:%s', mockPort);
+          done();
+        });
       });
     });
   });
